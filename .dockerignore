@@ -1,0 +1,10 @@
+/.dockerignore
+/.git
+/.gitignore
+/Dockerfile
+/infrastructure
+/nginx
+/songren.tar
+/target
+/tmp
+/docker
