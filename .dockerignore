@@ -6,5 +6,5 @@
 /nginx
 /songren.tar
 /target
-/tmp
 /docker
+/config
