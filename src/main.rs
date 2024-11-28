@@ -6,7 +6,7 @@ use std::{
 
 use anyhow::{bail, ensure, Context, Result};
 use axum::{extract, http::StatusCode, routing::post, Router};
-use config::{Config, ConfigWithVars, DockerModule, NginxModule, Var};
+use config::{Config, ConfigWithVars, DockerModule, GitModule, NginxModule, Var};
 use futures::{StreamExt, TryFutureExt};
 use rand::prelude::Distribution;
 
@@ -189,6 +189,51 @@ async fn docker_post(service: &str, module: &Option<DockerModule>) -> Result<()>
     Ok(())
 }
 
+async fn git_update(
+    _service: &str,
+    old: &Option<GitModule>,
+    new: &Option<GitModule>,
+) -> Result<()> {
+    if let Some(GitModule { repo, dir }) = new {
+        let dir = Path::new(dir);
+        if !dir.exists() {
+            tokio::fs::create_dir_all(&dir).await?;
+            let status = tokio::process::Command::new("git")
+                .arg("clone")
+                .arg(repo)
+                .arg(dir)
+                .status()
+                .await?;
+            ensure!(status.success(), "Failed to clone git repository");
+        } else {
+            let status = tokio::process::Command::new("git")
+                .current_dir(dir)
+                .arg("remote")
+                .arg("set-url")
+                .arg("origin")
+                .arg(repo)
+                .status()
+                .await?;
+            ensure!(status.success(), "Failed to set git repository URL");
+            let status = tokio::process::Command::new("git")
+                .current_dir(dir)
+                .arg("pull")
+                .status()
+                .await?;
+            ensure!(status.success(), "Failed to pull git repository");
+        }
+    }
+
+    if let Some(GitModule { dir, .. }) = old {
+        let dir = Path::new(dir);
+        if dir.exists() && Some(dir) != new.as_ref().map(|m| Path::new(&m.dir)) {
+            tokio::fs::remove_dir_all(&dir).await?;
+        }
+    }
+
+    Ok(())
+}
+
 async fn try_read(path: &Path) -> Result<Option<String>> {
     match tokio::fs::read_to_string(path).await {
         Ok(content) => Ok(Some(content)),
@@ -253,6 +298,10 @@ async fn update(service: String) -> Result<()> {
         .await
         .context("Failed to start container")?;
 
+    git_update(&service, &config.inner.git, &infrastructure.git)
+        .await
+        .context("Failed to update git repository")?;
+
     nginx_update(&service, &infrastructure.nginx)
         .await
         .context("Failed to update nginx config")?;
@@ -299,21 +348,19 @@ async fn update_config() -> Result<()> {
         // TODO: doing the same work twice
         let config_path = PathBuf::from(format!("config/{service}.toml"));
         let config_str = try_read(&config_path).await?;
-        let config: Config = config_str
+        let config: Option<Config> = config_str
             .as_deref()
             .map(toml::from_str)
             .transpose()
-            .context("Failed to parse config file")?
-            .unwrap_or_default();
+            .context("Failed to parse config file")?;
 
         let infrastrucure_path = PathBuf::from(format!("infrastructure/{service}.toml"));
         let infrastructure_str = try_read(&infrastrucure_path).await?;
-        let infrastructure: Config = infrastructure_str
+        let infrastructure: Option<Config> = infrastructure_str
             .as_deref()
             .map(toml::from_str)
             .transpose()
-            .context("Failed to parse infrastructure file")?
-            .unwrap_or_default();
+            .context("Failed to parse infrastructure file")?;
 
         if config != infrastructure {
             update(service.to_owned()).await?;
