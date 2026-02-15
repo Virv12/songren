@@ -13,11 +13,13 @@ use tokio::net::TcpListener;
 use crate::{
     dnsmasq::{dnsmasq_update, DnsmasqModule},
     docker::{docker_post, docker_pre, DockerModule},
+    namecom::{namecom_update, NamecomModule},
     nginx::{nginx_update, NginxModule},
 };
 
 mod dnsmasq;
 mod docker;
+mod namecom;
 mod nginx;
 
 const LISTEN_ON: &str = match option_env!("LISTEN_ON") {
@@ -39,6 +41,7 @@ struct Config {
     docker: Option<DockerModule>,
     nginx: Option<NginxModule>,
     dnsmasq: Option<DnsmasqModule>,
+    namecom: Option<NamecomModule>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
@@ -171,6 +174,10 @@ async fn update(service: String) -> Result<()> {
     dnsmasq_update(&service, &infrastructure.dnsmasq)
         .await
         .context("Failed to update dnsmasq config")?;
+
+    namecom_update(&service, &config.inner.namecom, &infrastructure.namecom)
+        .await
+        .context("Failed to update name.com config")?;
 
     if infrastructure_str.is_some() {
         tokio::fs::write(&config_path, toml::to_string(&infrastructure_with_vars)?)
