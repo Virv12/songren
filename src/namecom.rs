@@ -149,7 +149,7 @@ mod tests {
 
         let app = Router::new()
             .route(
-                "/core/v1/domains/:domain/records",
+                "/core/v1/domains/{domain}/records",
                 post(
                     |State(st): State<Arc<Mutex<MockState>>>,
                      Json(body): Json<serde_json::Value>| async move {
@@ -164,7 +164,7 @@ mod tests {
                 ),
             )
             .route(
-                "/core/v1/domains/:domain/records/:id",
+                "/core/v1/domains/{domain}/records/{id}",
                 delete(
                     |State(st): State<Arc<Mutex<MockState>>>,
                      Path((_d, id)): Path<(String, i32)>| async move {

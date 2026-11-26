@@ -32,7 +32,7 @@ struct AppState {
 fn build_router(state: Arc<AppState>) -> Router {
     Router::new()
         .route("/sync", post(handle_sync))
-        .route("/update/:service", post(handle_update))
+        .route("/update/{service}", post(handle_update))
         .route("/self-update", post(handle_self_update))
         .layer(middleware::from_fn_with_state(state.clone(), require_auth))
         .with_state(state)
