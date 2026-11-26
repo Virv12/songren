@@ -1,15 +1,17 @@
 [package]
 name = "songren"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 
 [dependencies]
 anyhow = "1.0.93"
 axum = "0.7.9"
-futures = "0.3.31"
-rand = "0.8.5"
-reqwest = { version = "0.13.2", default-features = false, features = ["charset", "http2", "json", "native-tls", "system-proxy"] }
+reqwest = { version = "0.13.2", default-features = false, features = ["charset", "http2", "json", "rustls", "system-proxy"] }
 serde = { version = "1.0.215", features = ["derive"] }
-tokio = { version = "1.41.1", features = ["fs", "macros", "process", "rt-multi-thread"] }
-tokio-stream = { version = "0.1.16", features = ["fs"] }
+tokio = { version = "1.41.1", features = ["macros", "process", "rt-multi-thread", "sync"] }
 toml = "0.8.19"
+tracing = "0.1.40"
+tracing-subscriber = "0.3.18"
+
+[dev-dependencies]
+tempfile = "3.14.0"
