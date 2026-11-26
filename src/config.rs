@@ -41,6 +41,7 @@ impl DnsRecordType {
         Ok(Self(raw))
     }
 
+    #[cfg(test)]
     pub fn parse(raw: &str) -> Result<Self> {
         Self::from_string(raw.to_owned())
     }
