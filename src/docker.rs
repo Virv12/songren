@@ -10,7 +10,6 @@ use tracing::{info, warn};
 
 use crate::config::{AppliedContainer, ContainerConfig, Slot};
 
-const READINESS_TIMEOUT: Duration = Duration::from_secs(30);
 const READINESS_POLL: Duration = Duration::from_millis(500);
 
 pub fn container_name(service: &str, name: &str, slot: Option<Slot>) -> String {
@@ -250,7 +249,9 @@ pub async fn prepare_containers(
         info!(container = %new_name, image = %cfg.image, "Starting container");
         run_docker(&arg_refs).await?;
 
-        if let Err(err) = wait_ready(&new_name, READINESS_TIMEOUT).await {
+        if let Err(err) =
+            wait_ready(&new_name, Duration::from_secs(cfg.readiness_timeout_secs)).await
+        {
             warn!(container = %new_name, "Container failed readiness check, cleaning up");
             let _ = remove_container(&new_name).await;
             return Err(err);
@@ -331,6 +332,7 @@ mod tests {
             tty: true,
             stop_signal: Some("SIGKILL".to_owned()),
             stop_first: false,
+            readiness_timeout_secs: 120,
         };
 
         let args = build_run_args("myapp-web-a", "songren", &cfg);

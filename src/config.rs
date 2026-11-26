@@ -93,10 +93,17 @@ pub struct ContainerConfig {
     /// starting the new one (for stateful/single-instance services).
     #[serde(default)]
     pub stop_first: bool,
+    /// Seconds to wait for container healthcheck readiness before aborting (default: 120).
+    #[serde(default = "default_readiness_timeout_secs")]
+    pub readiness_timeout_secs: u64,
 }
 
 fn default_restart() -> String {
     "unless-stopped".to_owned()
+}
+
+fn default_readiness_timeout_secs() -> u64 {
+    120
 }
 
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]

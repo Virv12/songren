@@ -161,6 +161,7 @@ mod tests {
                 tty: false,
                 stop_signal: None,
                 stop_first: false,
+                readiness_timeout_secs: 120,
             },
         );
         ServiceConfig {
