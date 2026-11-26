@@ -1,0 +1,14 @@
+listen_on = "127.0.0.1:8000"
+docker_network = "songren"
+# auth_token = "change-me"
+
+services_dir = "/etc/songren/services"
+state_dir = "/var/lib/songren/state"
+repos_dir = "/var/lib/songren/repos"
+worktrees_dir = "/var/lib/songren/worktrees"
+nginx_dir = "/etc/nginx/conf.d"
+dnsmasq_dir = "/etc/dnsmasq.d"
+
+# [namecom]
+# username = ""
+# token = ""

@@ -24,9 +24,7 @@ async fn delete_record(
     id: i32,
 ) -> Result<()> {
     let res = CLIENT
-        .delete(format!(
-            "{api_base}/core/v1/domains/{domain}/records/{id}"
-        ))
+        .delete(format!("{api_base}/core/v1/domains/{domain}/records/{id}"))
         .basic_auth(&creds.username, Some(&creds.token))
         .send()
         .await?;
@@ -83,7 +81,9 @@ async fn namecom_update_with_base(
         return Ok(old.to_vec());
     }
 
-    let creds = creds.context("Name.com DNS records configured, but [namecom] credentials are missing in songren.toml")?;
+    let creds = creds.context(
+        "Name.com DNS records configured, but [namecom] credentials are missing in songren.toml",
+    )?;
 
     for old_rec in old {
         if new.contains(&old_rec.config) {
@@ -166,7 +166,8 @@ mod tests {
             .route(
                 "/core/v1/domains/:domain/records/:id",
                 delete(
-                    |State(st): State<Arc<Mutex<MockState>>>, Path((_d, id)): Path<(String, i32)>| async move {
+                    |State(st): State<Arc<Mutex<MockState>>>,
+                     Path((_d, id)): Path<(String, i32)>| async move {
                         st.lock().await.deleted.push(id);
                         Json(serde_json::json!({}))
                     },

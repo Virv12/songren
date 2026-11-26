@@ -9,11 +9,7 @@ use crate::{
     state::{self, ServiceDiff},
 };
 
-pub async fn reconcile_service(
-    global: &GlobalConfig,
-    service: &str,
-    force: bool,
-) -> Result<bool> {
+pub async fn reconcile_service(global: &GlobalConfig, service: &str, force: bool) -> Result<bool> {
     let desired = state::load_desired(global, service)?;
     let applied = state::load_applied(global, service)?;
 

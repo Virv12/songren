@@ -131,7 +131,10 @@ mod tests {
             },
         );
         let mut sites = BTreeMap::new();
-        sites.insert("docs".to_owned(), PathBuf::from("/var/lib/songren/sites/app/docs"));
+        sites.insert(
+            "docs".to_owned(),
+            PathBuf::from("/var/lib/songren/sites/app/docs"),
+        );
 
         let template = "proxy_pass http://{docker.web.ip}:8080;\nroot {git.docs.site};";
         let rendered = render_nginx_config(template, &containers, &sites).unwrap();

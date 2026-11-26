@@ -1,0 +1,13 @@
+[Unit]
+Description=Songren service orchestrator
+After=network-online.target docker.service
+Wants=network-online.target docker.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/songren /etc/songren
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -31,9 +31,8 @@ pub async fn dnsmasq_update(
 
     let changed = if entries.is_empty() {
         if prev.is_some() {
-            std::fs::remove_file(&path).with_context(|| {
-                format!("Failed to remove dnsmasq config: {}", path.display())
-            })?;
+            std::fs::remove_file(&path)
+                .with_context(|| format!("Failed to remove dnsmasq config: {}", path.display()))?;
             true
         } else {
             false

@@ -2,6 +2,20 @@
 name = "songren"
 version = "0.2.0"
 edition = "2021"
+description = "Lightweight declarative service orchestrator for Docker, Git, Nginx, dnsmasq, and Name.com"
+
+[package.metadata.deb]
+maintainer = "virv12"
+section = "admin"
+priority = "optional"
+depends = "docker.io | docker-ce, git, nginx, dnsmasq, systemd"
+conf-files = ["/etc/songren/songren.toml"]
+maintainer-scripts = "debian/"
+assets = [
+    ["target/release/songren", "usr/bin/", "755"],
+    ["debian/songren.service", "lib/systemd/system/songren.service", "644"],
+    ["debian/songren.toml", "etc/songren/songren.toml", "600"],
+]
 
 [dependencies]
 anyhow = "1.0.93"

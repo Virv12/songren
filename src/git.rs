@@ -69,7 +69,16 @@ async fn sync_single_repo(repo_dir: &Path, work_tree: &Path, git: &GitConfig) ->
         work_tree = %work_tree.display(),
         "Fetching and checking out static files"
     );
-    run_git(&["--git-dir", repo_str, "fetch", "--depth", "1", &git.repo, target]).await?;
+    run_git(&[
+        "--git-dir",
+        repo_str,
+        "fetch",
+        "--depth",
+        "1",
+        &git.repo,
+        target,
+    ])
+    .await?;
     run_git(&[
         "--git-dir",
         repo_str,

@@ -4,34 +4,67 @@ on:
   push:
     branches:
       - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
 
 concurrency:
-  group: "ghcr.io/virv12/songren"
-  cancel-in-progress: true
+  group: "pages"
+  cancel-in-progress: false
 
 jobs:
-  docker:
-    name: Docker
+  build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
     steps:
-      - uses: actions/checkout@v3
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v2
-      - name: Login to ghcr.io
-        uses: docker/login-action@v2
+      - uses: actions/checkout@v4
+
+      - name: Run fmt, tests & clippy
+        run: |
+          cargo fmt --check
+          cargo test --locked
+          cargo clippy --all-targets --locked -- -D warnings
+
+      - name: Install cargo-deb & apt tools
+        run: |
+          cargo install cargo-deb --locked
+          sudo apt-get update
+          sudo apt-get install -y dpkg-dev apt-utils
+
+      - name: Build .deb package
+        run: cargo deb --locked
+
+      - name: Build static APT repository
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          mkdir -p apt-repo
+          cp target/debian/*.deb apt-repo/
+          (
+            cd apt-repo
+            dpkg-scanpackages --multiversion . > Packages
+            gzip -k -f Packages
+            apt-ftparchive release . > Release
+            if [ -n "$GPG_PRIVATE_KEY" ]; then
+              printf '%s\n' "$GPG_PRIVATE_KEY" | gpg --batch --import
+              KEY_ID=$(gpg --list-secret-keys --with-colons | awk -F: '/^sec:/ {print $5; exit}')
+              gpg --batch --yes --armor --export "$KEY_ID" > songren.gpg
+              printf '%s\n' "$GPG_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --armor --detach-sign -o Release.gpg Release
+              printf '%s\n' "$GPG_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --clearsign -o InRelease Release
+            fi
+          )
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload APT repo artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build Image
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          push: true
-          tags: ghcr.io/virv12/songren:latest
-          cache-from: type=gha,scope=docker
-          cache-to: type=gha,mode=max,scope=docker
+          path: ./apt-repo
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
