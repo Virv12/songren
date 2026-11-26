@@ -1,4 +1,5 @@
 mod config;
+mod docker;
 mod state;
 
 use anyhow::{bail, Result};

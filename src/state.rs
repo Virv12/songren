@@ -29,10 +29,7 @@ pub enum ServiceDiff {
     Unchanged,
 }
 
-pub fn compute_diff(
-    desired: Option<ServiceConfig>,
-    applied: Option<AppliedState>,
-) -> ServiceDiff {
+pub fn compute_diff(desired: Option<ServiceConfig>, applied: Option<AppliedState>) -> ServiceDiff {
     match (desired, applied) {
         (Some(new), None) => ServiceDiff::Create(new),
         (Some(new), Some(old)) if old.config != new => ServiceDiff::Update { old, new },
@@ -159,6 +156,9 @@ mod tests {
                 user: None,
                 working_dir: None,
                 network_mode: None,
+                read_only: false,
+                tty: false,
+                stop_signal: None,
                 stop_first: false,
             },
         );
@@ -177,7 +177,7 @@ mod tests {
             "web".to_owned(),
             AppliedContainer {
                 active_slot: Some(Slot::A),
-                ip: Some("172.18.0.2".to_owned()),
+                ip: Some("172.18.0.2".parse().unwrap()),
             },
         );
         let applied_a = AppliedState {
@@ -231,7 +231,7 @@ mod tests {
             "web".to_owned(),
             AppliedContainer {
                 active_slot: Some(Slot::A),
-                ip: Some("172.18.0.5".to_owned()),
+                ip: Some("172.18.0.5".parse().unwrap()),
             },
         );
         let state = AppliedState {

@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, path::PathBuf};
+use std::{collections::BTreeMap, fmt, net::IpAddr, path::PathBuf};
 
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
@@ -83,6 +83,11 @@ pub struct ContainerConfig {
     pub user: Option<String>,
     pub working_dir: Option<String>,
     pub network_mode: Option<String>,
+    #[serde(default)]
+    pub read_only: bool,
+    #[serde(default)]
+    pub tty: bool,
+    pub stop_signal: Option<String>,
     /// Songren update strategy: when true, stop the existing container before
     /// starting the new one (for stateful/single-instance services).
     #[serde(default)]
@@ -151,12 +156,14 @@ impl Slot {
             Slot::B => Slot::A,
         }
     }
+}
 
-    pub fn as_str(self) -> &'static str {
-        match self {
+impl fmt::Display for Slot {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
             Slot::A => "a",
             Slot::B => "b",
-        }
+        })
     }
 }
 
@@ -220,7 +227,7 @@ fn default_docker_network() -> String {
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Clone, Default)]
 pub struct AppliedContainer {
     pub active_slot: Option<Slot>,
-    pub ip: Option<String>,
+    pub ip: Option<IpAddr>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Clone, Default)]
@@ -273,6 +280,9 @@ mod tests {
 [containers.web]
 image = "ghcr.io/virv12/myapp:latest"
 volumes = ["/data/myapp:/app/data"]
+read_only = true
+tty = true
+stop_signal = "SIGKILL"
 
 [containers.web.environment]
 RUST_LOG = "info"
@@ -319,6 +329,9 @@ path = "/var/www/site"
         assert_eq!(web.image, "ghcr.io/virv12/myapp:latest");
         assert_eq!(web.volumes, vec!["/data/myapp:/app/data"]);
         assert_eq!(web.restart, "unless-stopped");
+        assert!(web.read_only);
+        assert!(web.tty);
+        assert_eq!(web.stop_signal.as_deref(), Some("SIGKILL"));
         assert!(!web.stop_first);
         assert_eq!(
             web.environment.get("RUST_LOG").map(String::as_str),
@@ -335,7 +348,10 @@ path = "/var/www/site"
             .content
             .contains("proxy_pass http://{ip.web}:8080;"));
         assert_eq!(cfg.dnsmasq.len(), 2);
-        assert_eq!(cfg.dnsmasq[0].record_type, DnsRecordType::parse("A").unwrap());
+        assert_eq!(
+            cfg.dnsmasq[0].record_type,
+            DnsRecordType::parse("A").unwrap()
+        );
         assert_eq!(cfg.namecom.len(), 1);
         assert_eq!(cfg.namecom[0].host, "app");
         let git = cfg.git.get("site").unwrap();
