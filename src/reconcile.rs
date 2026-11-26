@@ -37,26 +37,47 @@ pub async fn reconcile_service(global: &GlobalConfig, service: &str, force: bool
                 .map(|s| s.namecom.as_slice())
                 .unwrap_or(&[]);
 
-            let prepared = docker::prepare_containers(
-                service,
-                &global.docker_network,
-                &new_cfg.containers,
-                &old_containers,
-            )
-            .await?;
+            let old_container_configs = applied
+                .as_ref()
+                .map(|s| s.config.containers.clone())
+                .unwrap_or_default();
+            let containers_changed =
+                applied.as_ref().map(|s| &s.config.containers) != Some(&new_cfg.containers);
+            let (applied_containers, cleanup) = if force || containers_changed {
+                let prepared = docker::prepare_containers(
+                    service,
+                    &global.docker_network,
+                    &new_cfg.containers,
+                    &old_container_configs,
+                    &old_containers,
+                )
+                .await?;
+                (prepared.applied, prepared.cleanup)
+            } else {
+                (old_containers, Vec::new())
+            };
 
-            let worktrees = git::sync_git(global, service, &new_cfg.git, &old_git).await?;
+            let git_changed = applied.as_ref().map(|s| &s.config.git) != Some(&new_cfg.git);
+            let worktrees = if force || git_changed {
+                git::sync_git(global, service, &new_cfg.git, &old_git).await?
+            } else {
+                new_cfg
+                    .git
+                    .iter()
+                    .map(|(name, g)| (name.clone(), git::worktree_path(global, service, name, g)))
+                    .collect()
+            };
 
             nginx::nginx_update(
                 global,
                 service,
                 new_cfg.nginx.as_ref(),
-                &prepared.applied,
+                &applied_containers,
                 &worktrees,
             )
             .await?;
 
-            docker::cleanup_containers(&prepared.cleanup).await?;
+            docker::cleanup_containers(&cleanup).await?;
             dnsmasq::dnsmasq_update(global, service, &new_cfg.dnsmasq).await?;
             let applied_namecom =
                 namecom::namecom_update(global.namecom.as_ref(), old_namecom, &new_cfg.namecom)
@@ -67,7 +88,7 @@ pub async fn reconcile_service(global: &GlobalConfig, service: &str, force: bool
                 service,
                 &AppliedState {
                     config: new_cfg,
-                    containers: prepared.applied,
+                    containers: applied_containers,
                     namecom: applied_namecom,
                 },
             )?;

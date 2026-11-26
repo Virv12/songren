@@ -124,6 +124,22 @@ pub async fn pull_image(image: &str) -> Result<()> {
     Ok(())
 }
 
+async fn inspect_image_id(image: &str) -> Option<String> {
+    run_docker(&["image", "inspect", "--format", "{{.Id}}", image])
+        .await
+        .ok()
+        .filter(|s| !s.is_empty())
+}
+
+async fn container_running_with_image(name: &str, image_id: &str) -> bool {
+    let Ok(out) = run_docker(&["inspect", "--format", "{{.State.Running}} {{.Image}}", name]).await
+    else {
+        return false;
+    };
+    let mut parts = out.split_whitespace();
+    parts.next() == Some("true") && parts.next() == Some(image_id)
+}
+
 pub async fn remove_container(name: &str) -> Result<()> {
     let output = Command::new("docker")
         .args(["rm", "-f", name])
@@ -206,6 +222,7 @@ pub async fn prepare_containers(
     service: &str,
     network: &str,
     desired: &BTreeMap<String, ContainerConfig>,
+    old_configs: &BTreeMap<String, ContainerConfig>,
     old: &BTreeMap<String, AppliedContainer>,
 ) -> Result<PreparedContainers> {
     if !desired.is_empty() {
@@ -225,6 +242,17 @@ pub async fn prepare_containers(
         pull_image(&cfg.image).await?;
 
         let old_entry = old.get(name);
+        if old_configs.get(name) == Some(cfg) {
+            if let (Some(prev), Some(image_id)) = (old_entry, inspect_image_id(&cfg.image).await) {
+                let prev_name = container_name(service, name, prev.active_slot);
+                if container_running_with_image(&prev_name, &image_id).await {
+                    info!(container = %prev_name, image = %cfg.image, "Image and config unchanged, keeping container");
+                    applied.insert(name.clone(), prev.clone());
+                    continue;
+                }
+            }
+        }
+
         let old_slot = old_entry.and_then(|c| c.active_slot);
         let new_slot = if cfg.stop_first {
             None
