@@ -8,7 +8,8 @@ pub fn ensure_dirs(cfg: &GlobalConfig) -> Result<()> {
     for dir in [
         &cfg.services_dir,
         &cfg.state_dir,
-        &cfg.sites_dir,
+        &cfg.worktrees_dir,
+        &cfg.repos_dir,
         &cfg.nginx_dir,
         &cfg.dnsmasq_dir,
     ] {
@@ -183,6 +184,7 @@ mod tests {
         let applied_a = AppliedState {
             config: cfg_a.clone(),
             containers,
+            ..Default::default()
         };
 
         assert_eq!(
@@ -237,6 +239,7 @@ mod tests {
         let state = AppliedState {
             config: cfg.clone(),
             containers,
+            ..Default::default()
         };
         save_applied(&global, "web", &state).unwrap();
         save_applied(&global, "orphan", &state).unwrap();

@@ -108,7 +108,7 @@ pub struct GitConfig {
 
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
 pub struct NginxConfig {
-    /// Raw Nginx configuration. Supports `{ip.<name>}` and `{site.<name>}` placeholders.
+    /// Raw Nginx configuration. Supports `{docker.<name>.ip}` and `{git.<name>.site}` placeholders.
     pub content: String,
 }
 
@@ -185,7 +185,9 @@ pub struct GlobalConfig {
     #[serde(default)]
     pub state_dir: PathBuf,
     #[serde(default)]
-    pub sites_dir: PathBuf,
+    pub worktrees_dir: PathBuf,
+    #[serde(default)]
+    pub repos_dir: PathBuf,
     #[serde(default)]
     pub nginx_dir: PathBuf,
     #[serde(default)]
@@ -200,8 +202,11 @@ impl GlobalConfig {
         if self.state_dir.as_os_str().is_empty() {
             self.state_dir = base.join("state");
         }
-        if self.sites_dir.as_os_str().is_empty() {
-            self.sites_dir = base.join("sites");
+        if self.worktrees_dir.as_os_str().is_empty() {
+            self.worktrees_dir = base.join("worktrees");
+        }
+        if self.repos_dir.as_os_str().is_empty() {
+            self.repos_dir = base.join("repos");
         }
         if self.nginx_dir.as_os_str().is_empty() {
             self.nginx_dir = base.join("nginx");
@@ -230,11 +235,19 @@ pub struct AppliedContainer {
     pub ip: Option<IpAddr>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
+pub struct AppliedNamecomRecord {
+    pub config: NamecomConfig,
+    pub id: i32,
+}
+
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Clone, Default)]
 pub struct AppliedState {
     pub config: ServiceConfig,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub containers: BTreeMap<String, AppliedContainer>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub namecom: Vec<AppliedNamecomRecord>,
 }
 
 #[cfg(test)]
@@ -297,7 +310,7 @@ server {
     listen 80;
     server_name app.example.com;
     location / {
-        proxy_pass http://{ip.web}:8080;
+        proxy_pass http://{docker.web.ip}:8080;
     }
 }
 """
@@ -346,7 +359,7 @@ path = "/var/www/site"
             .as_ref()
             .unwrap()
             .content
-            .contains("proxy_pass http://{ip.web}:8080;"));
+            .contains("proxy_pass http://{docker.web.ip}:8080;"));
         assert_eq!(cfg.dnsmasq.len(), 2);
         assert_eq!(
             cfg.dnsmasq[0].record_type,

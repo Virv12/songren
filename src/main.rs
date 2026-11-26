@@ -1,5 +1,9 @@
 mod config;
+mod dnsmasq;
 mod docker;
+mod git;
+mod namecom;
+mod nginx;
 mod state;
 
 use anyhow::{bail, Result};
