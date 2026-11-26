@@ -24,6 +24,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: Swatinem/rust-cache@v2
+
       - name: Run fmt, tests & clippy
         run: |
           cargo fmt --check
@@ -31,8 +33,10 @@ jobs:
           cargo clippy --all-targets --locked -- -D warnings
 
       - name: Install cargo-deb & apt tools
+        uses: taiki-e/install-action@cargo-deb
+
+      - name: Install apt repo tools
         run: |
-          cargo install cargo-deb --locked
           sudo apt-get update
           sudo apt-get install -y dpkg-dev apt-utils
 
@@ -64,7 +68,7 @@ jobs:
         uses: actions/configure-pages@v5
 
       - name: Upload APT repo artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: ./apt-repo
 
