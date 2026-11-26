@@ -4,7 +4,7 @@ A lightweight, declarative service orchestrator written in Rust for managing sin
 
 ## Features
 
-- **Single Docker containers**: Supports both zero-downtime blue/green cutovers (`stop_first = false`) and stop-first updates (`stop_first = true`) for stateful services, using isolated bridge container IPs (no manual port allocation).
+- **Single Docker containers**: Supports both stop-first updates (default, `stop_first = true`) for stateful services and zero-downtime blue/green cutovers (`stop_first = false`), using isolated bridge container IPs (no manual port allocation).
 - **Git static worktrees**: Checks out static sites into clean worktree directories with no `.git` folder exposed to Nginx.
 - **Nginx**: Renders raw Nginx configs with `{docker.<name>.ip}` and `{git.<name>.site}` placeholders, validates with `nginx -t` before reloading, and rolls back on failure.
 - **DNS**: Manages local `dnsmasq` records and public Name.com Core v1 DNS records (storing record IDs for direct cleanup).
@@ -55,7 +55,7 @@ Every section is optional.
 image = "ghcr.io/example/myapp:latest"
 read_only = true
 tty = true
-# stop_first = true        # Stop old container before starting new one
+# stop_first = false       # Opt into zero-downtime blue/green cutovers (default: true)
 # stop_signal = "SIGKILL"
 
 [containers.web.environment]

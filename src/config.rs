@@ -89,9 +89,10 @@ pub struct ContainerConfig {
     #[serde(default)]
     pub tty: bool,
     pub stop_signal: Option<String>,
-    /// Songren update strategy: when true, stop the existing container before
-    /// starting the new one (for stateful/single-instance services).
-    #[serde(default)]
+    /// Songren update strategy: when true (default), stop the existing container
+    /// before starting the new one (safe for stateful/single-instance services).
+    /// Set to false for zero-downtime blue/green cutovers.
+    #[serde(default = "default_stop_first")]
     pub stop_first: bool,
     /// Seconds to wait for container healthcheck readiness before aborting (default: 120).
     #[serde(default = "default_readiness_timeout_secs")]
@@ -100,6 +101,10 @@ pub struct ContainerConfig {
 
 fn default_restart() -> String {
     "unless-stopped".to_owned()
+}
+
+fn default_stop_first() -> bool {
+    true
 }
 
 fn default_readiness_timeout_secs() -> u64 {
@@ -304,13 +309,13 @@ volumes = ["/data/myapp:/app/data"]
 read_only = true
 tty = true
 stop_signal = "SIGKILL"
+stop_first = false
 
 [containers.web.environment]
 RUST_LOG = "info"
 
 [containers.db]
 image = "postgres:16"
-stop_first = true
 
 [nginx]
 content = """

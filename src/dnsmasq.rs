@@ -6,6 +6,34 @@ use tracing::info;
 
 use crate::config::{DnsmasqConfig, GlobalConfig};
 
+async fn validate_dnsmasq() -> Result<()> {
+    let output = Command::new("dnsmasq")
+        .arg("--test")
+        .output()
+        .await
+        .context("Failed to execute dnsmasq --test")?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        bail!("dnsmasq --test failed: {}", stderr.trim());
+    }
+    Ok(())
+}
+
+async fn restart_dnsmasq() -> Result<()> {
+    let output = Command::new("systemctl")
+        .args(["restart", "dnsmasq"])
+        .output()
+        .await
+        .context("Failed to execute systemctl restart dnsmasq")?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        bail!("systemctl restart dnsmasq failed: {}", stderr.trim());
+    }
+    Ok(())
+}
+
 pub fn render_dnsmasq(entries: &[DnsmasqConfig]) -> Result<String> {
     let mut out = String::new();
     for entry in entries {
@@ -52,19 +80,20 @@ pub async fn dnsmasq_update(
         return Ok(());
     }
 
-    info!(service, "Restarting dnsmasq");
-    let output = Command::new("systemctl")
-        .args(["restart", "dnsmasq"])
-        .output()
-        .await
-        .context("Failed to execute systemctl restart dnsmasq")?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        bail!("systemctl restart dnsmasq failed: {}", stderr.trim());
+    if let Err(err) = validate_dnsmasq().await {
+        match prev {
+            Some(old) => {
+                let _ = std::fs::write(&path, old);
+            }
+            None => {
+                let _ = std::fs::remove_file(&path);
+            }
+        }
+        return Err(err);
     }
 
-    Ok(())
+    info!(service, "Restarting dnsmasq");
+    restart_dnsmasq().await
 }
 
 #[cfg(test)]
